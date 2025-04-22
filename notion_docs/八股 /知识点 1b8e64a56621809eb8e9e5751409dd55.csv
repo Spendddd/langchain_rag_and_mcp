@@ -1,0 +1,33 @@
+﻿Name,State
+softmax注意力,已完成
+lightning attention机制：基于minimax,已完成
+MLA、MHA、GQA、MQA,已完成
+MTP,已完成
+位置编码,已完成
+MoE与负载均衡,已完成
+正则化,已完成
+归一化,已完成
+transformer、LLaMA,已完成
+最新大模型,学习中
+tokenizer,已完成
+embedding,学习中
+optimizer,已完成
+激活函数,学习中
+大模型发展史,学习中
+微调技术,未开始
+RLHF：PPO、DPO、GRPO,学习中
+RAG,已完成
+SFT vs RAG vs RLHF,已完成
+flash attention,已完成
+训练、推理框架,学习中
+"Agent, MCP, pipeline",学习中
+Prompt Engineering,未开始
+计组计网,未开始
+cv：GAN、DDPM、Diffusion、StableDiffusion,已完成
+多模态,未开始
+长上下文,已完成
+ZeRO,已完成
+模型剪枝,未开始
+学习博客,学习中
+实验结果‼️,学习中
+深度学习：CNN、RNN、lstm,
