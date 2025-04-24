@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大模型八股RAG客户端</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            color: #333;
+            background-color: #f0f4f8;
+        }
+        #header {
+            background-color: #003366;
+            color: white;
+            text-align: center;
+            padding: 15px 0;
+            width: 100%;
+        }
+        #description {
+            text-align: center;
+            padding: 10px 0;
+            background-color: #e0e5eb;
+        }
+        #input-container {
+            margin: 20px auto;
+            width: 80%; 
+            display: flex;
+            flex-direction: column;
+            /* 确保输入框容器居中 */
+            align-items: center; 
+        }
+        #button-container {
+            display: flex;
+            gap: 10px;
+        }
+        #query-input {
+            width: 100%;
+            height: 100px;
+            padding: 15px 20px; 
+            font-size: 16px;
+            resize: vertical;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        #submit-btn, #stop-btn {
+            /* 适度减小按钮的内边距以缩小按钮大小 */
+            padding: 8px 20px; 
+            font-size: 14px; 
+            font-weight: bold; 
+            border: none;
+            border-radius: 10px; 
+            cursor: pointer;
+            margin-top: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); 
+            transition: all 0.3s ease;
+        }
+        #submit-btn {
+            background-color: #2196F3;
+            color: white;
+        }
+        #submit-btn:hover {
+            background-color: #1976D2;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        #stop-btn {
+            background-color: #ff0000;
+            color: white;
+            display: none;
+        }
+        #stop-btn:hover {
+            background-color: #cc0000;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        #response-container {
+            border: 1px solid #ccc;
+            padding: 15px 20px; 
+            min-height: 200px;
+            width: 80%; 
+            margin: 20px auto;
+            display: none;
+            border-radius: 5px;
+            background-color: white;
+        }
+        #loading-icon {
+            display: none;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .loading {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #2196F3;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #llm-title, #tool-title {
+            display: none;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div id="header">大模型八股RAG问答器</div>
+    <div id="description">本问答器内容基于RAG技术和mcp技术支持的搜索工具进行生成，仅供娱乐~~</div>
+    <div id="input-container">
+        <textarea id="query-input" placeholder="请输入查询内容"></textarea>
+        <div id="button-container">
+            <button id="submit-btn">提交</button>
+            <button id="stop-btn">停止生成</button>
+        </div>
+    </div>
+    <div id="loading-icon">
+        <div class="loading"></div>
+    </div>
+    <div id="response-container">
+        <div id="time-taken"></div>
+        <h3 id="llm-title">LLM 回答：</h3>
+        <div id="llm-response"></div>
+        <h3 id="tool-title">调用工具及返回内容：</h3>
+        <div id="tool-responses"></div>
+    </div>
+
+    <script>
+        const submitBtn = document.getElementById('submit-btn');
+        const stopBtn = document.getElementById('stop-btn');
+        const queryInput = document.getElementById('query-input');
+        const llmResponse = document.getElementById('llm-response');
+        const toolResponses = document.getElementById('tool-responses');
+        const responseContainer = document.getElementById('response-container');
+        const loadingIcon = document.getElementById('loading-icon');
+        const timeTaken = document.getElementById('time-taken');
+        const llmTitle = document.getElementById('llm-title');
+        const toolTitle = document.getElementById('tool-title');
+        let startTime;
+        let controller = new AbortController();
+
+        queryInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                submitBtn.click();
+            }
+        });
+
+        submitBtn.addEventListener('click', async () => {
+            const query = queryInput.value.trim();
+            if (!query) return;
+
+            controller = new AbortController();
+            const signal = controller.signal;
+
+            loadingIcon.style.display = 'block';
+            startTime = new Date().getTime();
+            responseContainer.style.display = 'none'; 
+            llmTitle.style.display = 'none';
+            toolTitle.style.display = 'none';
+            // 用户提交查询后显示“停止生成”按钮
+            stopBtn.style.display = 'block'; 
+
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query }),
+                    signal: signal
+                });
+                const data = await response.json();
+
+                const endTime = new Date().getTime();
+                const duration = (endTime - startTime) / 1000;
+                timeTaken.textContent = `本次查询用时: ${duration.toFixed(2)} 秒`;
+
+                if (data.error) {
+                    llmResponse.textContent = `错误: ${data.error}`;
+                } else {
+                    llmResponse.innerHTML = marked.parse(data.final_answer);
+                    toolResponses.innerHTML = '';
+                    data.intermediate_steps.forEach((step, index) => {
+                        const div = document.createElement('div');
+                        div.innerHTML = `<strong>步骤 ${index + 1}:</strong> 调用工具 ${step[0].tool}<br>返回内容: ${step[1]}`;
+                        toolResponses.appendChild(div);
+                    });
+                    llmTitle.style.display = 'block';
+                    toolTitle.style.display = 'block';
+                }
+                responseContainer.style.display = 'block';
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    llmResponse.textContent = '查询已被用户取消';
+                } else {
+                    llmResponse.textContent = `请求出错: ${error.message}`;
+                }
+            } finally {
+                loadingIcon.style.display = 'none';
+                // 隐藏“停止生成”按钮
+                stopBtn.style.display = 'none'; 
+                queryInput.value = '';
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            controller.abort();
+            stopBtn.style.display = 'none';
+            queryInput.value = '';
+        });
+    </script>
+</body>
+</html>

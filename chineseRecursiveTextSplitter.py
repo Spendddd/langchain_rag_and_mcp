@@ -40,10 +40,10 @@ class ChineseRecursiveTextSplitter(RecursiveCharacterTextSplitter):
         self._separators = separators or [
             "\n\n",
             "\n",
-            "。|！|？",
-            "\.\s|\!\s|\?\s",
-            "；|;\s",
-            "，|,\s",
+            # "。|！|？",
+            # "\.\s|\!\s|\?\s",
+            # "；|;\s",
+            # "，|,\s",
         ]
         self._is_separator_regex = is_separator_regex
 
