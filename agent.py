@@ -50,8 +50,8 @@ vector_search_tool = create_retriever_tool(
 
 
 # 定义网页检索工具
-# from langchain_community.tools.tavily_search import TavilySearchResults
-# web_search_tool = TavilySearchResults(k=10)
+from langchain_community.tools.tavily_search import TavilySearchResults
+web_search_tool = TavilySearchResults(k=10)
 
 
 # In[49]:
@@ -94,10 +94,19 @@ async def run(query) -> dict:
     global current_task
     try:
         mcp_configs = {
-            "tavily-mcp-server": {
-                "type": "sse",
-                "url": "https://mcp.api-inference.modelscope.cn/sse/d9f1df868bac4e"
-            }
+            "tavily-mcp": {
+                "command": "npx",
+                "args": ["-y", "tavily-mcp@0.1.2"],
+                "env": {
+                    "TAVILY_API_KEY": os.environ["TAVILY_API_KEY"]
+                }
+            },
+            # 下面的实现方式和上面等价，下面利用sse url连接实现，上面利用npm安装实现
+            # "tavily-mcp": {
+            #     "type": "sse",
+            #     "url": "https://mcp.api-inference.modelscope.cn/sse/your_own_url"
+            #     # 请利用魔搭社区MCP广场Tavily智搜工具输入你的API Key，点击连接测试，复制生成的SSE URL，填入上面的url中
+            # }
         }
 
         mcptools, cleanup = await convert_mcp_to_langchain_tools(
@@ -218,4 +227,5 @@ if __name__ == '__main__':
     asgi_app = WSGIMiddleware(app)
     uvicorn.run(asgi_app, host='127.0.0.1', port=5000)
     # llama和transformer有什么区别？
-    # pgvector是什么?
+    # function calling是什么?
+    # FAISS是什么？
