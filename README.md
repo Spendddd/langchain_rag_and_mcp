@@ -17,7 +17,7 @@ rag数据库的数据来源是中文为主的notion（md文件格式）和pdf，
 
 1、通过load_notion_docs.py和load_pdf.py加载notion和pdf数据到向量数据库
 
-2、修改agent.py中的llm和embedding_model为自己的大模型和embedding模型
+2、修改agent.py中的llm和embedding_model为自己的大模型和embedding模型，并根据需求修改agent.py文件中的mcp服务配置方式
 
 3、新建.env文件，添加你自己的DEEPSEEK_API_KEY（或其他大模型）、TAVILY_API_KEY
 
