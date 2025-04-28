@@ -6,6 +6,7 @@ from chineseRecursiveTextSplitter import ChineseRecursiveTextSplitter
 # from langchain.embeddings import OpenAIEmbeddings
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma, FAISS
+from langchain_experimental.text_splitter import SemanticChunker
 
 def add_docs(docs, all_splits, markdown_splitter, text_splitter):
     for doc in docs:
@@ -17,6 +18,18 @@ def add_docs(docs, all_splits, markdown_splitter, text_splitter):
             # Let's create groups based on the section headers in our page
             md_header_splits = markdown_splitter.split_text(md_file)
             all_splits.extend(text_splitter.split_documents(md_header_splits))
+
+def add_docs_semantic(docs, all_splits, markdown_splitter, semantic_splitter):
+    for doc in docs:
+        # print(doc)
+        if type(doc) == list:
+            add_docs_semantic(doc, all_splits, markdown_splitter, semantic_splitter)
+        else:
+            md_file=doc.page_content
+            # Let's create groups based on the section headers in our page
+            md_header_splits = markdown_splitter.split_text(md_file)
+            all_splits.extend(semantic_splitter.split_documents(md_header_splits))
+
 
 def load_notions():
     # default_server.start()
@@ -30,18 +43,22 @@ def load_notions():
     ]
     all_splits = []
     # Define our text splitter
-    chunk_size = 1000
-    chunk_overlap = 150
+    chunk_size = 300
+    chunk_overlap = 70
     markdown_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on)
+    embeddings = HuggingFaceEmbeddings(model_name="./local_models/bge-base-zh-v1.5", encode_kwargs={"normalize_embeddings": True})
+    semantic_splitter = SemanticChunker(embeddings=embeddings, sentence_split_regex='(?<=[。？！])\\s+', breakpoint_threshold_amount=82, max_chunk_size=300)
     text_splitter = ChineseRecursiveTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-
-    add_docs(docs, all_splits, markdown_splitter, text_splitter)
-    # print(all_splits[:10])
-    embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-base-zh-v1.5", encode_kwargs={"normalize_embeddings": True})
+    # add_docs(docs, all_splits, markdown_splitter, text_splitter)
+    # 0423改进：使用语义分割器分割文档
+    add_docs_semantic(docs, all_splits, markdown_splitter, semantic_splitter)
+    final_chunks = []
+    for chunk in all_splits:
+        final_chunks.extend(text_splitter.split_text(chunk.page_content))
 
     # 修改为使用 Faiss 进行向量存储
     vectordb = FAISS.from_documents(
-        documents=all_splits,
+        documents=final_chunks,
         embedding=embeddings
     )
 
