@@ -9,7 +9,9 @@ rag数据库的数据来源是中文为主的notion（md文件格式）和pdf，
 
 基于FAISS实现了向量数据库的构建和数据存储，基于BAAI/bge-base-zh-v1.5实现文本向量化和相似度检索，基于BM25Retriever类实现BM25检索，基于EnsembleRetriever类实现混合检索，基于CrossEncoderReranker加载重排模型bge-reranker-base，基于ContextualCompressionRetriever类实现带重排的向量数据库信息检索召回。
 
-基于deepseek-chat实现了大模型的调用，基于langgraph实现了rag系统的流程编排。
+基于langgraph的函数create_react_agent实现agent构建。
+
+基于调用deepseek-chat实现推理【0430新增】支持通过启动Ollama调用本地模型进行推理。
 
 基于mcp协议加载Tavily检索功能并基于convert_mcp_to_langchain_tools函数将mcp工具转换成langchain工具，实现多种工具统一提供给大模型调度。
 
@@ -23,7 +25,7 @@ rag数据库的数据来源是中文为主的notion（md文件格式）和pdf，
 
 2、修改agent.py中的llm和embedding_model为自己的大模型和embedding模型，并根据个人需求修改agent.py文件中的mcp服务配置方式
 
-3、新建.env文件，添加你自己的DEEPSEEK_API_KEY（或其他大模型）、TAVILY_API_KEY
+3、运行local_models，下载用于重排和embedding的模型；新建.env文件，添加你自己的DEEPSEEK_API_KEY（或其他用于推理的大模型的api key）、TAVILY_API_KEY；如果使用本地模型进行推理，请启动Ollama并在Ollama中下载希望用于推理的模型
 
 4、运行agent.py
 
@@ -42,4 +44,4 @@ rag数据库的数据来源是中文为主的notion（md文件格式）和pdf，
 
 5、【前端/后端】未实现历史对话存储功能。
 
-6、【前端/后端】目前检索向量数据库的方法指定为带重排的混合检索方法，未实现选择数据库检索方式（如BM25、向量检索、混合检索等）以及自定义权重配比功能；
+6、【前端/后端】目前检索向量数据库的方法指定为带重排的固定权重混合检索方法，未实现选择数据库检索方式（如BM25、向量检索、混合检索等）以及自定义权重配比功能；

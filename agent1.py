@@ -61,7 +61,8 @@ ensemble_retriever = EnsembleRetriever(
 
 # 定义一个reranker，用于对检索结果进行排序
 reranker_model = "./local_models/bge-reranker-base"
-model_kwargs = {'device': 'cpu'}
+model_kwargs = {'device': 'cuda'}
+# model_kwargs = {'device': 'cpu'}
 reranker = HuggingFaceCrossEncoder(
     model_name=reranker_model,
     model_kwargs=model_kwargs
@@ -116,10 +117,10 @@ def init_logger() -> logging.Logger:
 
 from langgraph.prebuilt import create_react_agent
 from langchain.chat_models import init_chat_model
+from langchain_ollama import ChatOllama
 from langchain_mcp_tools import convert_mcp_to_langchain_tools
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder  
-from langchain.tools.render import render_text_description_and_args  
 from langchain_core.messages import AIMessage, ToolMessage
+from bs4 import BeautifulSoup
 import asyncio
 from flask import Flask, request, jsonify, render_template
 import json
@@ -151,25 +152,29 @@ async def run(query) -> dict:
         )
 
         tools.extend(mcptools)
-        model = init_chat_model(model="deepseek-chat", model_provider="deepseek", temperature=0.1)  
-
-        # system_prompt = """请尽可能以有帮助和准确的方式回应人类。你可以使用以下工具：{tools}。
-        # 优先尝试使用向量数据库搜索工具在向量数据库中搜索相关信息，
-        # 在当前行动轮次，如果在向量数据库中检索了1次仍未发现有效的相关信息或你认为相关信息不足时，请使用其他工具进行检索，
-        # 注意每轮行动中向量数据库检索最多只能使用1次，其他工具最多只能使用2次。
-        # 使用JSON对象通过提供action key（工具名称）和action_input key（工具输入）来指定工具。 
-        # 有效的“action”值包括：“Final Answer”或者{tool_names}。每个JSON对象只提供一个action。"""
-
-        # # human prompt  
-        # human_prompt = """用户问题：{messages}。
-        # 注意：始终以JSON对象进行响应。"""
+        
+        # 通过ollama使用本地模型进行推理
+        model = ChatOllama(
+            model = "qwen3:4b",
+            # base_url="http://localhost:11434/",
+            num_predict = -1,
+            num_gpu=1,
+            enable_thinking=True,
+            temperature=0.6,
+            top_p=0.95,
+            top_k=20,
+            min_p=0,
+            stop=["<|im_start|>", "<|im_end|>"],
+            repeat_penalty=1
+        )
+        # model = init_chat_model(model="deepseek-chat", model_provider="deepseek", temperature=0.1)  
         
         # create prompt template
         system_prompt = """
             你是一个专业的知识助手，擅长回答用户的问题。
             请利用提供的工具来回答用户的问题。
             请优先尝试使用向量数据库搜索工具在向量数据库中搜索相关信息，
-            在当前行动轮次，如果在向量数据库中检索了1次仍未发现有效的相关信息或你认为相关信息不足时，请使用其他工具进行检索，
+            在当前行动轮次，如果在向量数据库中检索了1次仍未发现有效的相关信息或你认为相关信息不足时，请使用其他工具进行信息检索，
             注意每轮行动中向量数据库检索最多只能使用1次，其他工具最多只能使用2次。
             """
         graph = create_react_agent(
@@ -182,23 +187,40 @@ async def run(query) -> dict:
         async def inner_run():
             inputs = {"messages": [("user", query)]}
             final_answer = ""
+            think_content = ""
             intermediate_steps = []
-            for s in graph.stream(inputs, stream_mode="values"):
+            async for s in graph.astream(inputs, stream_mode="values"):
                 print("s: ", s)
                 for i, message in enumerate(s["messages"]):
-                    if isinstance(message, AIMessage) and message.additional_kwargs.get('tool_calls'):
-                            tool_call = message.additional_kwargs['tool_calls'][0]
-                            tool_query = json.loads(tool_call['function']['arguments']).get('query', "")
-                            tool_name = tool_call['function']['name']
+                    if isinstance(message, AIMessage):
+                        if (hasattr(message, 'additional_kwargs') and message.additional_kwargs.get('tool_calls')) or (hasattr(message, 'tool_calls') and len(message.tool_calls) > 0):
+                            if hasattr(message, 'additional_kwargs') and message.additional_kwargs.get('tool_calls'):
+                                tool_call = message.additional_kwargs['tool_calls'][0]['function']
+                                tool_query = json.loads(tool_call['arguments']).get('query', "")
+                                tool_name = tool_call['name']
+                            else:
+                                tool_call = message.tool_calls[0]
+                                tool_query = tool_call['args'].get('query', "")
+                                tool_name = tool_call['name']
                             if i + 1 < len(s["messages"]) and isinstance(s["messages"][i + 1], ToolMessage):
                                 tool_content = s["messages"][i + 1].content
                                 intermediate_steps.append(({"tool": tool_name, "input": tool_query}, tool_content))
-                    elif isinstance(message, AIMessage) and not message.additional_kwargs.get('tool_calls'):
-                        final_answer = message.content
-            print("final_answer: ", final_answer)
-            print("intermediate_steps: ", intermediate_steps)
+                        else:
+                            soup = BeautifulSoup(message.content, 'html.parser')
+                            think_tags = soup.find_all('think')
+                            for tag in think_tags:
+                                think_content += tag.get_text().strip()
+                                # 从原始内容中移除 <think> 标签及其内容
+                                tag.extract()
+                            final_answer += str(soup)
+                            # final_answer += message.content
+                        print("final_answer: ", final_answer)
+                        print("think_content: ", think_content)
+                        print("intermediate_steps: ", intermediate_steps)
+
             return {
                 "final_answer": final_answer,
+                "think_content": think_content,  # 包含所有<think>标签中的内容，包括之前的内容
                 "intermediate_steps": intermediate_steps
             }
 

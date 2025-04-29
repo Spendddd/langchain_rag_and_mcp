@@ -122,6 +122,8 @@
     </div>
     <div id="response-container">
         <div id="time-taken"></div>
+        <h3 id="think-title" style="display: none;">思考过程：</h3>
+        <div id="think-response"></div>
         <h3 id="llm-title">LLM 回答：</h3>
         <div id="llm-response"></div>
         <h3 id="tool-title">调用工具及返回内容：</h3>
@@ -139,6 +141,8 @@
         const timeTaken = document.getElementById('time-taken');
         const llmTitle = document.getElementById('llm-title');
         const toolTitle = document.getElementById('tool-title');
+        const thinkTitle = document.getElementById('think-title');
+        const thinkResponse = document.getElementById('think-response');
         let startTime;
         let controller = new AbortController();
 
@@ -159,6 +163,9 @@
             loadingIcon.style.display = 'block';
             startTime = new Date().getTime();
             responseContainer.style.display = 'none'; 
+            // // 隐藏思考过程区域
+            thinkTitle.style.display = 'none';
+            thinkResponse.innerHTML = '';
             llmTitle.style.display = 'none';
             toolTitle.style.display = 'none';
             // 用户提交查询后显示“停止生成”按钮
@@ -191,6 +198,11 @@
                     });
                     llmTitle.style.display = 'block';
                     toolTitle.style.display = 'block';
+                    // 根据 think_content 的值显示思考过程区域
+                    if (data.think_content) {
+                        thinkTitle.style.display = 'block';
+                        thinkResponse.textContent = data.think_content;
+                    }
                 }
                 responseContainer.style.display = 'block';
             } catch (error) {
