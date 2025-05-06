@@ -29,9 +29,12 @@ embeddings = HuggingFaceEmbeddings(model_name="./local_models/bge-base-zh-v1.5",
 retrieverList = []
 collections=["notion", "pdf"]
 all_docs = []
+# type = "indexivfflat"
+type = "indexflatl2"
+# type = "indexivfpq"
 for collection in collections:
     vectordb = FAISS.load_local(
-        "./storage/faiss_index_"+collection,
+        "./storage/faiss_"+type+"_"+collection,
         embeddings,
         allow_dangerous_deserialization=True
     )

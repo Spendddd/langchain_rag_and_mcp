@@ -32,9 +32,12 @@ embeddings = HuggingFaceEmbeddings(model_name="./local_models/bge-base-zh-v1.5",
 retrieverList = []
 collections=["notion", "pdf"]
 all_docs = []
+# type = "indexivfflat"
+type = "indexflatl2"
+# type = "indexivfpq"
 for collection in collections:
     vectordb = FAISS.load_local(
-        "./storage/faiss_index_"+collection,
+        "./storage/faiss_"+type+"_"+collection,
         embeddings,
         allow_dangerous_deserialization=True
     )
@@ -182,6 +185,11 @@ async def run(query) -> dict:
             tools=tools,
             prompt=system_prompt
         )
+
+        # 打印Mermaid图
+        from IPython.display import Image, display
+        display(Image(graph.get_graph().draw_mermaid_png())) 
+        
         current_task = asyncio.current_task()
 
         async def inner_run():
